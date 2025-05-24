@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>MyBank - Account Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+          background: linear-gradient(to bottom right, #c7e9f1, #ffffff);
+        }
+    </style>
+</head>
+<body class="min-h-screen text-gray-800">
+<header class="bg-blue-900 text-white p-5 shadow-md">
+    <div class="container mx-auto flex justify-between items-center">
+        <h1 class="text-2xl font-bold">MyBank</h1>
+    </div>
+</header>
+
+<main class="container mx-auto p-6">
+    <!-- Create Account -->
+    <section class="bg-white p-6 rounded-2xl shadow-md mb-8">
+        <h2 class="text-xl font-semibold mb-4">Create New Account</h2>
+        <form id="createAccountForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input id="holderName" type="text" placeholder="Account Holder Name" class="border p-2 rounded" required />
+            <input id="initialDeposit" type="number" placeholder="Initial Deposit" class="border p-2 rounded" required />
+            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 md:col-span-2">Create Account</button>
+        </form>
+    </section>
+
+    <!-- Deposit / Withdraw -->
+    <section class="bg-white p-6 rounded-2xl shadow-md mb-8">
+        <h2 class="text-xl font-semibold mb-4">Deposit / Withdraw</h2>
+        <form id="transactionForm" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <input id="transactionAccountId" type="number" placeholder="Account ID" class="border p-2 rounded" required />
+            <input id="transactionAmount" type="number" placeholder="Amount" class="border p-2 rounded" required />
+            <select id="transactionType" class="border p-2 rounded">
+                <option value="deposit">Deposit</option>
+                <option value="withdraw">Withdraw</option>
+            </select>
+            <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 md:col-span-3">Submit</button>
+        </form>
+    </section>
+
+    <!-- All Accounts -->
+    <section class="bg-white p-6 rounded-2xl shadow-md">
+        <h2 class="text-xl font-semibold mb-4">All Accounts</h2>
+        <button onclick="loadAccounts()" class="mb-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Refresh Accounts</button>
+        <table class="w-full table-auto border-collapse">
+            <thead class="bg-blue-100">
+            <tr>
+                <th class="p-2 border">ID</th>
+                <th class="p-2 border">Account Holder Name</th>
+                <th class="p-2 border">Balance</th>
+                <th class="p-2 border">Actions</th>
+            </tr>
+            </thead>
+            <tbody id="accountTableBody"></tbody>
+        </table>
+    </section>
+</main>
+
+<footer class="text-center text-sm text-gray-600 mt-12 mb-4">
+    &copy; 2025 MyBank. All rights reserved.
+</footer>
+
+<script>
+    const API_URL = 'http://localhost:8080/api/accounts';
+
+    document.getElementById('createAccountForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const name = document.getElementById('holderName').value;
+      const balance = parseFloat(document.getElementById('initialDeposit').value);
+
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ accountHolderName: name, balance }) // ✅ FIXED
+      });
+
+      if (response.ok) {
+        alert("Account created successfully!");
+        this.reset();
+        loadAccounts();
+      } else {
+        alert("Error creating account");
+      }
+    });
+
+    document.getElementById('transactionForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const id = document.getElementById('transactionAccountId').value;
+      const amount = parseFloat(document.getElementById('transactionAmount').value);
+      const type = document.getElementById('transactionType').value;
+
+      const response = await fetch(`${API_URL}/${id}/${type}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ amount })
+      });
+
+      if (response.ok) {
+        alert(`${type.charAt(0).toUpperCase() + type.slice(1)} successful`);
+        this.reset();
+        loadAccounts();
+      } else {
+        const errorText = await response.text();
+        alert("Transaction failed: " + errorText);
+      }
+    });
+
+    async function loadAccounts() {
+      const table = document.getElementById('accountTableBody');
+      table.innerHTML = '';
+      const response = await fetch(API_URL);
+      const accounts = await response.json();
+
+      accounts.forEach(account => {
+        const row = `
+          <tr>
+            <td class="p-2 border">${account.id}</td>
+            <td class="p-2 border">${account.accountHolderName}</td>
+            <td class="p-2 border">$${account.balance.toFixed(2)}</td>
+            <td class="p-2 border">
+              <button onclick="deleteAccount(${account.id})" class="text-red-600 hover:underline">Delete</button>
+            </td>
+          </tr>
+        `;
+        table.insertAdjacentHTML('beforeend', row);
+      });
+    }
+
+    async function deleteAccount(id) {
+      if (confirm('Are you sure you want to delete this account?')) {
+        const response = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+        if (response.ok) {
+          alert("Account deleted");
+          loadAccounts();
+        } else {
+          alert("Failed to delete account");
+        }
+      }
+    }
+
+    // Initial load
+    loadAccounts();
+</script>
+</body>
+</html>
